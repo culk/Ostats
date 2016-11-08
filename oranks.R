@@ -2,7 +2,7 @@ library(tidyverse)
 library(rvest)
 library(lubridate)
 
-# http://r4ds.had.co.nz/r-markdown.html
+# http://r4ds.had.co.nz/
 
 # runner: https://www.orienteeringusa.org/rankings/runner_show.php?db_id=5415
 # courses: https://www.orienteeringusa.org/rankings/crs_sum.php
