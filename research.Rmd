@@ -29,18 +29,18 @@ What is CGV for courses?
 
 ### Top Blue Runners:
 ```{r}
-blue <- o_rank_course(rank_date = "2016-10-31", crs_num = 70)
+blue <- o_rank_course(rank_date = "2016-10-31", course = "blue")
 print(blue, n = 10)
 ```
 
 ### Blue Runners Score vs # of Events:
 ```{r}
-ggplot(blue, aes(x = Score, y = `# Events`)) + geom_point()
+ggplot(blue, aes(x = Score, y = Count_Events)) + geom_point()
 ```
 
 ### Kevin Culberg's Results
 ```{r}
-results <- suppressMessages(o_runner_results("Culberg", "Kevin"))
+results <- suppressMessages(o_runner_results("culberg", "kevin"))
 print(results, n = 10)
 ggplot(filter(results, Score > 0), aes(x = mdy(Date), y = Score)) + geom_point(aes(color = Course)) + geom_smooth() + coord_cartesian(ylim = c(0, 100))
 ```
