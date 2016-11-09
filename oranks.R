@@ -162,6 +162,25 @@ o_events <- function() {
   # https://www.orienteeringusa.org/rankings/results.php
   # ID, Name, Date, Club
   # goes back to Georgia Navigator Cup Day 1, Jan 16, 2010 (GAOC)
+  url <- "https://www.orienteeringusa.org/rankings/results.php"
+  page <- read_html(url)
+  lines <- page %>%
+    html_nodes("div#content ul li")
+  ids <- lines %>% 
+    html_node("a") %>% 
+    html_attr("href") %>%
+    str_split("ev_id=") %>%
+    sapply(function(x) x[2]) %>%
+    tibble(ID = .)
+  events <- lines %>%
+    html_text() %>%
+    as_tibble() %>%
+    separate(value, into = c("Name", "md", "other"), sep = ", ") %>%
+    separate(other, into = c("y", "Club"), sep = "  ") %>%
+    unite(Date, md, y, sep = ", ") %>%
+    mutate(Club = str_sub(Club, 2, -2)) %>%
+    bind_cols(ids, .)
+  return(events)
 }
 
 o_courses <- function() {
