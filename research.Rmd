@@ -10,8 +10,7 @@ library(lubridate)
 source("oranks.R")
 ```
 
-
-What is CGV for courses?
+What is CGV for courses? course gnarliness value - probably calculated using top3 pace, distance, climb
 
 ### Variables:
 * runners: score, age, # events, course/class, years orienteering, club
@@ -19,7 +18,7 @@ What is CGV for courses?
 * events: type, distance, controls, climb, date, cgv
 
 ### Questions:
-* How does an orienteer's rank change over time?
+* How does an orienteer's rank change over time? :check:
 * Are clubs hosting more or less national level meets?
 * When was the golden age of orienteering competitors?
 * When was the golded age of orienteering events?
@@ -38,7 +37,7 @@ print(blue, n = 10)
 ggplot(blue, aes(x = Score, y = Count_Events)) + geom_point()
 ```
 
-### Kevin Culberg's Results
+### Runner's Results
 ```{r}
 results <- suppressMessages(o_runner_results("culberg", "kevin"))
 print(results, n = 10)

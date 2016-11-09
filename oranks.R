@@ -2,7 +2,11 @@ library(tidyverse)
 library(rvest)
 library(lubridate)
 
-# http://r4ds.had.co.nz/
+# FUTURE: add support for rank data past 2010
+#   links: https://www.orienteeringusa.org/rankings/archive.php
+#   ranks has: Rank, Name, Club, # Events, Pts, Time, Rank, Course, Class
+#   started breaking it out by course in 2003
+#   started doing intermediate rankings in 2006
 
 # runner: https://www.orienteeringusa.org/rankings/runner_show.php?db_id=5415
 # courses: https://www.orienteeringusa.org/rankings/crs_sum.php
@@ -154,4 +158,19 @@ o_runner_results <- function(last, first, current = FALSE) {
   return(results)
 }
 
+o_events <- function() {
+  # https://www.orienteeringusa.org/rankings/results.php
+  # ID, Name, Date, Club
+  # goes back to Georgia Navigator Cup Day 1, Jan 16, 2010 (GAOC)
+}
 
+o_courses <- function() {
+  # https://www.orienteeringusa.org/rankings/crs_sum.php
+  # ID, Name, Date, Club, Course, Length, Climb, Controls, CGV, [count runners, top3 avg time, top3 avg pace, count [finish/mp/dnf]]
+  # not sorted by time looks like it goes back to 2010 as well
+}
+
+o_clubs <- function() {
+  # http://www.us.orienteering.org/clubs/all
+  # Name, Code, Website, City, State, Zip
+}
