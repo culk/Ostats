@@ -1,6 +1,7 @@
 library(tidyverse)
 library(rvest)
 library(lubridate)
+library(stringr)
 
 # FUTURE: add support for rank data past 2010
 #   links: https://www.orienteeringusa.org/rankings/archive.php
@@ -103,14 +104,8 @@ o_runner_results <- function(last, first, current = FALSE) {
   # having to pull data from every ranking page which can be slow.
   
   # navigate to the runner selection page
-  first_to_upper <- function(t) {
-    f <- substr(t, 1, 1)
-    rest <- substring(t, 2)
-    return(paste0(toupper(f), tolower(rest)))
-  }
-  first <- first_to_upper(first)
-  last <- first_to_upper(last)
-  name <- paste(first, last, sep = " ")
+  name <- paste(first, last, sep = " ") %>%
+    str_to_title()
   url <- paste0("https://www.orienteeringusa.org/rankings/find.php?order=last&init=",
                 substr(last, 1, 1))
   # select runner based on input
