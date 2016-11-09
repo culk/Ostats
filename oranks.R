@@ -92,7 +92,11 @@ o_rank_course <- function(rank_date = "current", course) {
 # use current to specify if you want to limit results to current ranking only (past year)
 # info obtained from: https://www.orienteeringusa.org/rankings/find.php
 o_runner_results <- function(last, first, current = FALSE) {
-  # Bug: will return no results for most recent date if the most recent date is not the current rankings
+  # Note: scores from individual events are recalculated by OUSA whenever new rankings are done until
+  # the event has rolled off of the current rankings (after 12 months). This can cause the score
+  # from an event to change +/- 10 points over a 12 month period. Pulling the last reported score 
+  # (at 12 months) seems to be the most elegant way to work around this with the side affect of
+  # having to pull data from every ranking page which can be slow.
   
   # navigate to the runner selection page
   first_to_upper <- function(t) {
@@ -107,14 +111,14 @@ o_runner_results <- function(last, first, current = FALSE) {
                 substr(last, 1, 1))
   # select runner based on input
   s <- html_session(url)
-  
-  # tryCatch()
   page <- tryCatch({
     follow_link(s, name)
   }, error = function(e) {
     e$message <- paste0("Runner '", name, "' could not be found on page: ", url)
     stop(e)
   })
+  # dfs[[1]] contains latest ranking event results
+  # dfs[[2]] contains a table of dates for previous rankings
   dfs <- page %>%
     html_nodes("div#content table") %>%
     html_table()
@@ -124,31 +128,28 @@ o_runner_results <- function(last, first, current = FALSE) {
   } else {
     # identify all dates with results
     dates <- dfs[[2]] %>%
+      mutate(Date = mdy(Date)) %>%
       select(Date) %>%
-      mutate(Value = Date, Date = mdy(Date)) %>%
-      arrange(desc(Date))
-    # select one date out of every year with results
-    values <- dates %>%
-      group_by(Year = year(Date)) %>%
-      summarise(Value = first(Value)) %>%
-      arrange(-Year) %>%
-      select(Value) %>%
+      arrange(desc(Date)) %>%
       t() %>%
       as.list()
-    # read the course results for every year and combine
+    # read the course results for all past rankings and add only the newest scores
     get_date_result <- function(d) {
-      page %>%
-        follow_link(d) %>%
+      paste0(page$url, "&rank_date=", d) %>%
+        read_html() %>%
         html_node("div#content table") %>%
         html_table()
     }
-    results <- lapply(values[-1], get_date_result) %>% 
-      c(list(dfs[[1]]), .) %>%
-      do.call(rbind, .) %>%
-      unique()
+    results <- lapply(dates, get_date_result) %>%
+      do.call(rbind, .)
+    old_scores <- results %>%
+      select(Event, Date, Course, InRank) %>%
+      duplicated()
+    results <- results[!old_scores, ]
   }
   results <- results %>%
     select(-Diff) %>%
+    filter(InRank == "Y") %>%
     as_tibble()
   return(results)
 }
