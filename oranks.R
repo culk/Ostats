@@ -188,3 +188,20 @@ o_clubs <- function() {
   # http://www.us.orienteering.org/clubs/all
   # Name, Code, Website, City, State, Zip
 }
+
+o_rank_archive <- function() {
+  # this is going to be a huge pain because of inconsistent format
+  url <- "https://www.orienteeringusa.org/rankings/archive.php"
+  page <- read_html(url)
+  years <- page %>%
+    html_nodes("ul#treemenu1.treeview > li") %>%
+    html_text() %>%
+    substr(1, 13)
+  links <- page %>%
+    html_nodes("a") %>%
+    html_attr("href") %>%
+    as_tibble()
+  result_links <- links %>%
+    filter(str_detect(value, "12_31"))
+  return(NULL)
+}
