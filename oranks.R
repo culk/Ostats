@@ -13,8 +13,9 @@ library(stringr)
 # courses: https://www.orienteeringusa.org/rankings/crs_sum.php
 # ranks: https://www.orienteeringusa.org/rankings/index.php
 
-# returns all available dates for which ranks have been published
-# info obtained from: https://www.orienteeringusa.org/rankings/index.php
+# returns a character vector of dates for which ranks have been published
+# source: https://www.orienteeringusa.org/rankings/index.php
+# output format: YYYY-MM-DD
 o_rank_dates <- function() {
   dates <- read_html("https://www.orienteeringusa.org/rankings/index.php") %>%
     html_nodes("div#rank a.submenu") %>%
@@ -24,10 +25,11 @@ o_rank_dates <- function() {
     as.character()
 }
 
-# takes in a date and course and returns the combined rankings table 
-# for all classes on that course
-# info obtained from: https://www.orienteeringusa.org/rankings/index.php
-o_rank_course <- function(rank_date = "current", course) {
+# takes in a date and course and returns a data frame of the combined 
+# rankings for all classes on that course
+# source: https://www.orienteeringusa.org/rankings/index.php
+# input format: course: 70 or "blue", rank_date: YYYY-MM-DD
+o_rank_course <- function(course, rank_date = "current") {
   # error checking and conversion for course selections
   courses <- list(
     # course | crs_num
@@ -44,52 +46,50 @@ o_rank_course <- function(rank_date = "current", course) {
   } else if (course %in% courses) {
     crs_num <- course
   } else {
-    stop(paste0("Course '", course, "' is not a valid course. Try 'blue' or '70'."))
+    stop(str_c("Course '", course, 
+               "' is not a valid course. Try 'blue' or '70'."))
   }
-  # rank_date must be a valid date in format YYYY-MM-DD or "current" for the most recent ranks
+  # rank_date must be a valid date in format YYYY-MM-DD 
+  # or "current" for the most recent ranks
   if(rank_date == "current") {
-    rank_date <- read_html("https://www.orienteeringusa.org/rankings/index.php") %>%
-      html_node("div#rank a.submenu") %>%
-      html_text() %>%
-      mdy() %>%
-      as.character()
+    rank_date <- o_rank_dates() %>%
+      first()
   } else if (!(rank_date %in% o_rank_dates())) {
-    stop(paste0("Date '", rank_date, "' is not available or not a valid date. Try 'current' ", 
-                "or a different date in 'YYYY-MM-DD' format."))
+    stop(str_c("Date '", rank_date, 
+               "' is not available or not a valid date. Try 'current' ", 
+               "or a different date in 'YYYY-MM-DD' format."))
   }
   # get page of rank data
-  url <- paste0("https://www.orienteeringusa.org/rankings/rank_show.php?rank_date=",
-                rank_date,"&crs_num=",crs_num,"&show=cls")
+  url <- str_c("https://www.orienteeringusa.org/rankings/rank_show.php",
+               "?rank_date=", rank_date,"&crs_num=",crs_num,"&show=cls")
   page <- read_html(url)
   # read in the table for each class
   dfs <- page %>%
     html_nodes("div#content table") %>%
     html_table()
-  # make column names more readable
-  dfs <- dfs %>%
-    lapply(function(df) rename(df, Class_Rank = `Class Rank`, 
-                               Overall_Rank = `Overall Rank`, 
-                               Count_Events = `# Events`,
-                               Birth_Year = YB))
-  # convert rank columns to type integers and complete birth year
-  dfs <- suppressWarnings(
-    lapply(dfs, function(df) mutate(df, Class_Rank = as.integer(Class_Rank), 
-                                    Overall_Rank = as.integer(Overall_Rank),
-                                    Birth_Year = if_else(Birth_Year <= year(Sys.Date()) - 2000, 
-                                                         Birth_Year + 2000, 
-                                                         Birth_Year + 1900))))
   # read in class values to apply to each rank table
   classes <- page %>%
     html_nodes("div#content h4") %>%
     html_text()
-  if(substring(classes[1], 1, 8) == "Rankings") {
+  if(str_sub(classes[1], 1, 8) == "Rankings") {
     classes <- classes[-1]
   }
   # set the class column for each table and combine
   add_class_field <- function(df, class) mutate(df, Class = class)
   ranks <- mapply(add_class_field, dfs, classes, SIMPLIFY = FALSE) %>%
-    do.call(rbind, .) %>%
-    as_tibble()
+    bind_rows() %>%
+    as_tibble() %>%
+    rename(Class_Rank = `Class Rank`,
+           Overall_Rank = `Overall Rank`,
+           Count_Events = `# Events`,
+           Birth_Year = YB)
+  # convert rank columns to type integers and complete birth year
+  ranks <- suppressWarnings(
+    mutate(ranks, Class_Rank = as.integer(Class_Rank),
+           Overall_Rank = as.integer(Overall_Rank),
+           Birth_Year = if_else(Birth_Year <= year(Sys.Date()) - 2000,
+                                Birth_Year + 2000,
+                                Birth_Year + 1900)))
   return(ranks)
 }
 
