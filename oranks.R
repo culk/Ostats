@@ -184,9 +184,37 @@ o_courses <- function() {
   # not sorted by time looks like it goes back to 2010 as well
 }
 
+# returns data frame of all orienteering clubs
+# source: http://www.us.orienteering.org/clubs/all
+# fields: Name, Code, Website, City, State, Zip
 o_clubs <- function() {
-  # http://www.us.orienteering.org/clubs/all
-  # Name, Code, Website, City, State, Zip
+  url <- "http://www.us.orienteering.org/clubs/all"
+  page <- read_html(url)
+  content <- page %>%
+    html_nodes("div.views-field-nothing span.field-content") %>%
+    html_node("div")
+  # extract club name (i.e. "Bay Area Orienteering Club (BAOC)")
+  club.name <- content %>%
+    html_node("b a") %>%
+    html_text()
+  # extract club website (i.e. "http://qoc.us.orienteering.org/")
+  club.site <- content %>%
+    html_node(":nth-child(3)") %>%
+    html_text()
+  # regular expression to extact club location: (city), (state) (zip)
+  # (i.e. "Hopewell Junction", "New York", "12533")
+  club.location <- content %>%
+    html_text() %>%
+    str_match("((?:\\w+ )*(?:\\w+)), ((?:\\w+ )+)(\\d{5}(?:-\\d{4})?)") %>%
+    as_tibble() %>%
+    select(City = V2, State = V3, Zipcode = V4)
+  # combine all columns; separate out club code from name
+  clubs <- tibble(Name = club.name, Website = club.site) %>%
+    bind_cols(club.location) %>%
+    unique() %>%
+    separate(Name, c("Name", "Code"), sep = "  ") %>%
+    mutate(Code = str_sub(Code, 2, -2))
+  return(clubs)
 }
 
 o_rank_archive <- function() {
