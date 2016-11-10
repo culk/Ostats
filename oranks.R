@@ -153,10 +153,11 @@ o_runner_results <- function(last, first, current = FALSE) {
   return(results)
 }
 
+# returns data frame of all orienteering events since 2010
+# source:https://www.orienteeringusa.org/rankings/results.php
+# fields: ID, Name, Date, Club
+# one event will have one or many courses but each course will only have one event
 o_events <- function() {
-  # https://www.orienteeringusa.org/rankings/results.php
-  # ID, Name, Date, Club
-  # goes back to Georgia Navigator Cup Day 1, Jan 16, 2010 (GAOC)
   url <- "https://www.orienteeringusa.org/rankings/results.php"
   page <- read_html(url)
   lines <- page %>%
@@ -170,18 +171,28 @@ o_events <- function() {
   events <- lines %>%
     html_text() %>%
     as_tibble() %>%
-    separate(value, into = c("Name", "md", "other"), sep = ", ") %>%
-    separate(other, into = c("y", "Club"), sep = "  ") %>%
-    unite(Date, md, y, sep = ", ") %>%
-    mutate(Club = str_sub(Club, 2, -2)) %>%
+    separate(value, into = c("Name", "MonthDay", "other"), sep = ", ") %>%
+    separate(other, into = c("Year", "Club"), sep = "  ") %>%
+    unite(Date, MonthDay, Year, sep = ", ") %>%
+    mutate(Date = mdy(Date), Club = str_sub(Club, 2, -2)) %>%
     bind_cols(ids, .)
   return(events)
 }
 
+# returns data frame of all orienteering courses since 2010
+# source: https://www.orienteeringusa.org/rankings/crs_sum.php
+# fields: Name, Date, Club, Course, Length, Climb, Ctrls, CGV
 o_courses <- function() {
-  # https://www.orienteeringusa.org/rankings/crs_sum.php
-  # ID, Name, Date, Club, Course, Length, Climb, Controls, CGV, [count runners, top3 avg time, top3 avg pace, count [finish/mp/dnf]]
-  # not sorted by time looks like it goes back to 2010 as well
+  url <- "https://www.orienteeringusa.org/rankings/crs_sum.php"
+  page <- read_html(url)
+  courses <- page %>%
+    html_node("div#content table") %>%
+    html_table() %>%
+    as_tibble() %>%
+    rename(Name = `Event Name`, Date = `Event Date`) %>%
+    mutate(Date = mdy(Date)) %>%
+    arrange(desc(Date))
+  return(courses)
 }
 
 # returns data frame of all orienteering clubs
