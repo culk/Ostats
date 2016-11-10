@@ -93,27 +93,28 @@ o_rank_course <- function(course, rank_date = "current") {
   return(ranks)
 }
 
-# takes in a runner's last and first name and returns the event results history
-# use current to specify if you want to limit results to current ranking only (past year)
-# info obtained from: https://www.orienteeringusa.org/rankings/find.php
+# takes in a runner's last and first name and logical value for current
+# rank only; returns a data frame of event results used in rank calculations
+# source: https://www.orienteeringusa.org/rankings/find.php
+# input: 'current' limits results to current ranking results only (past year)
 o_runner_results <- function(last, first, current = FALSE) {
-  # Note: scores from individual events are recalculated by OUSA whenever new rankings are done until
-  # the event has rolled off of the current rankings (after 12 months). This can cause the score
-  # from an event to change +/- 10 points over a 12 month period. Pulling the last reported score 
-  # (at 12 months) seems to be the most elegant way to work around this with the side affect of
-  # having to pull data from every ranking page which can be slow.
+  # Note: Orienteering USA recalculates scores from individual events
+  # as they are used to calculate the current rankings. This will cause
+  # event scores to shift +/-5 over the 12 months after they are posted.
+  # This function only returns events from end of year totals and the current
+  # partial rank results to obtain the most accurate event scores.
   
   # navigate to the runner selection page
-  name <- paste(first, last, sep = " ") %>%
+  name <- str_c(first, last, sep = " ") %>%
     str_to_title()
-  url <- paste0("https://www.orienteeringusa.org/rankings/find.php?order=last&init=",
-                substr(last, 1, 1))
+  url <- str_c("https://www.orienteeringusa.org/rankings/find.php",
+               "?order=last&init=", str_sub(last, 1, 1))
   # select runner based on input
   s <- html_session(url)
   page <- tryCatch({
     follow_link(s, name)
   }, error = function(e) {
-    e$message <- paste0("Runner '", name, "' could not be found on page: ", url)
+    e$message <- str_c("Runner '", name, "' could not be found on page: ", url)
     stop(e)
   })
   # dfs[[1]] contains latest ranking event results
@@ -125,26 +126,30 @@ o_runner_results <- function(last, first, current = FALSE) {
     # return only the event results included in the current rank
     results <- dfs[[1]]
   } else {
-    # identify all dates with results
+    # select current rank date and the end of year rank date 
+    # for all years with results
     dates <- dfs[[2]] %>%
       mutate(Date = mdy(Date)) %>%
+      group_by(Year = year(Date)) %>%
+      summarise(Date = max(Date)) %>%
       select(Date) %>%
       arrange(desc(Date)) %>%
       t() %>%
       as.list()
-    # read the course results for all past rankings and add only the newest scores
+    # read the course results for previous end of year rankings
     get_date_result <- function(d) {
-      paste0(page$url, "&rank_date=", d) %>%
+      str_c(page$url, "&rank_date=", d) %>%
         read_html() %>%
         html_node("div#content table") %>%
         html_table()
     }
     results <- lapply(dates, get_date_result) %>%
-      do.call(rbind, .)
-    old_scores <- results %>%
-      select(Event, Date, Course, InRank) %>%
+      bind_rows()
+    # remove duplicated events
+    overlap <- results %>%
+      select(Event, Date, Course, Time) %>%
       duplicated()
-    results <- results[!old_scores, ]
+    results <- results[!overlap, ]
   }
   results <- results %>%
     select(-Diff) %>%
