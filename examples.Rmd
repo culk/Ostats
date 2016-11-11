@@ -1,0 +1,87 @@
+---
+title: "Examples"
+output: html_document
+---
+
+```{r setup, include = FALSE}
+library(tidyverse)
+library(rvest)
+library(lubridate)
+library(stringr)
+source("oranks.R")
+```
+### Ostats Example Usage  
+
+Available Functions:  
+* `o_rank_course()`  
+* `o_runner_results()`  
+* `o_courses()`  
+* `o_events()`  
+* `o_clubs()`  
+
+### Course Rankings:  
+
+The `o_rank_course()` function is used to access the combined rankings for a given course and date.  
+
+#### Red Runners by Current Course Rank:  
+```{r}
+red <- o_rank_course(course = "red", rank_date = "current") %>%
+  arrange(Overall_Rank, -Count_Events, -Score)
+print(red, n = 10, width = Inf)
+```
+
+#### F-20 Rankings for 2014:  
+```{r}
+F20 <- o_rank_course("green", "2014-12-31") %>%
+  filter(Class == "F-20") %>%
+  arrange(Class_Rank, -Count_Events, -Score)
+print(F20, n = 10, width = Inf)
+```
+
+### Runner's Results  
+
+The `o_runner_results()` function is used to access the complete course history of courses used in national rankings.  
+
+```{r}
+results <- suppressMessages(o_runner_results("culberg", "kevin"))
+ggplot(filter(results, Score > 0), aes(x = Date, y = Score)) +
+  geom_smooth(se = FALSE) +
+  geom_point(aes(color = Class)) +
+  coord_cartesian(ylim = c(0, 100))
+```
+
+### Course Data  
+
+The `o_courses()` function is used to access the course stats including date, length, controls and CGV.  
+```{r}
+courses <- o_courses()
+print(courses, n = 10, width = Inf)
+```
+
+#### Number of Controls on All Blue Courses by Year:
+
+```{r}
+controls <- courses %>%
+  filter(Course == "Blue") %>%
+  group_by(Year = year(Date)) %>%
+  summarise(`Total Controls` = sum(Ctrls))
+ggplot(controls, aes(x = Year, y = `Total Controls`)) +
+  geom_bar(stat = "identity")
+```
+
+### Event Data  
+
+The `o_events()` function is used to access event information including name, date and club.  
+
+#### Orienteering Season:  
+```{r}
+events <- o_events() %>%
+  group_by(Month = month(Date), Year = year(Date)) %>%
+  summarise(Count = n()) %>%
+  summarise(`Avg Events` = sum(Count)/7)
+ggplot(events, aes(x = factor(Month, levels = 1:12), y = `Avg Events`)) +
+  geom_bar(stat = "identity") +
+  scale_x_discrete(name = "Month", labels = month.abb)
+```
+
+### Club Data  
