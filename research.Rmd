@@ -1,5 +1,5 @@
 ---
-title: "O-Rank Research"
+title: "Ostats Research"
 output: html_notebook
 ---
 
@@ -7,41 +7,23 @@ output: html_notebook
 library(tidyverse)
 library(rvest)
 library(lubridate)
+library(stringr)
 source("oranks.R")
 ```
 
-What is CGV for courses? course gnarliness value - probably calculated using top3 pace, distance, climb
-
-### Variables:
+### Variables:  
 * runners: score, age, # events, course/class, years orienteering, club
 * clubs: # events, # competitors
 * events: type, distance, controls, climb, date, cgv
 
-### Questions:
-* How does an orienteer's rank change over time? :check:
-* Are clubs hosting more or less national level meets?
-* When was the golden age of orienteering competitors?
+### Questions:  
+* How does an orienteer's rank change over time? :check
+* Are clubs hosting more or less national level meets
+* When was the golden age of orienteering competitors
 * When was the golded age of orienteering events?
 * How does an orienteer's age and experience correlate to their score?
 * Which club is the best? (best elite competitors)
 * Which club has the best depth of competitors?
 
-### Top Blue Runners:
-```{r}
-blue <- o_rank_course(rank_date = "2016-10-31", course = "blue")
-print(blue, n = 10)
-```
-
-### Blue Runners Score vs # of Events:
-```{r}
-ggplot(blue, aes(x = Score, y = Count_Events)) + geom_point()
-```
-
-### Runner's Results
-```{r}
-results <- suppressMessages(o_runner_results("culberg", "kevin"))
-print(results, n = 10)
-ggplot(filter(results, Score > 0), aes(x = mdy(Date), y = Score)) + geom_point(aes(color = Course)) + geom_smooth() + coord_cartesian(ylim = c(0, 100))
-```
-
-
+### Other:
+* What is CGV for courses? course gnarliness value - probably calculated using top3 pace, distance, climb  

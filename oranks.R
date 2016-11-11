@@ -9,10 +9,6 @@ library(stringr)
 #   started breaking it out by course in 2003
 #   started doing intermediate rankings in 2006
 
-# runner: https://www.orienteeringusa.org/rankings/runner_show.php?db_id=5415
-# courses: https://www.orienteeringusa.org/rankings/crs_sum.php
-# ranks: https://www.orienteeringusa.org/rankings/index.php
-
 # returns a character vector of dates for which ranks have been published
 # source: https://www.orienteeringusa.org/rankings/index.php
 # output format: YYYY-MM-DD
@@ -41,7 +37,7 @@ o_rank_course <- function(course, rank_date = "current") {
     "yellow" = 20,
     "white"  = 10
   )
-  if(course %in% names(courses)) {
+  if(str_to_lower(course) %in% names(courses)) {
     crs_num <- courses[[course]]
   } else if (course %in% courses) {
     crs_num <- course
@@ -154,6 +150,7 @@ o_runner_results <- function(last, first, current = FALSE) {
   results <- results %>%
     select(-Diff) %>%
     filter(InRank == "Y") %>%
+    mutate(Date = mdy(Date)) %>%
     as_tibble()
   return(results)
 }
@@ -161,7 +158,6 @@ o_runner_results <- function(last, first, current = FALSE) {
 # returns data frame of all orienteering events since 2010
 # source:https://www.orienteeringusa.org/rankings/results.php
 # fields: ID, Name, Date, Club
-# one event will have one or many courses but each course will only have one event
 o_events <- function() {
   url <- "https://www.orienteeringusa.org/rankings/results.php"
   page <- read_html(url)
