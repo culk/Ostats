@@ -3,7 +3,7 @@ title: "Ostats Research"
 output: html_notebook
 ---
 
-```{r include = FALSE}
+```{r setup, include = FALSE}
 library(tidyverse)
 library(rvest)
 library(lubridate)
@@ -11,19 +11,68 @@ library(stringr)
 source("oranks.R")
 ```
 
-### Variables:  
+### Variables:
 * runners: score, age, # events, course/class, years orienteering, club
 * clubs: # events, # competitors
 * events: type, distance, controls, climb, date, cgv
 
-### Questions:  
-* How does an orienteer's rank change over time? :check
+### Questions:
+* How does an orienteer's rank change over time?
 * Are clubs hosting more or less national level meets
 * When was the golden age of orienteering competitors
 * When was the golded age of orienteering events?
 * How does an orienteer's age and experience correlate to their score?
-* Which club is the best? (best elite competitors)
-* Which club has the best depth of competitors?
 
 ### Other:
-* What is CGV for courses? course gnarliness value - probably calculated using top3 pace, distance, climb  
+* What is CGV for courses? course gnarliness value - probably calculated using top3 pace, distance, climb
+
+### Which club is the best?
+
+Source data is current year's rankings for advanced courses (blue, red, green)
+Group by class (M-21+, F-21+, etc.)
+x axis is each club, y axis is the score
+
+```{r, fig.align="center"}
+cur.blue <- o_rank_course("blue")
+cur.M21 <- cur.blue %>% 
+  filter(Count_Events > 3, Club != "")
+ggplot(cur.M21) +
+  ggtitle("M-21+ Scores by Club") +
+  geom_boxplot(aes(x = Club, y = Score), fill = "#72a8ff") +
+  scale_y_continuous(breaks = seq(0, 140, 10)) +
+  coord_flip() + theme_linedraw()
+```
+```{r, fig.align="center"}
+cur.red <- o_rank_course("red")
+cur.F21 <- cur.red %>%
+  filter(Count_Events > 3, Club != "", Class == "F-21+")
+ggplot(cur.F21) +
+  ggtitle("F-21+ Scores by Club") +
+  geom_boxplot(aes(x = Club, y = Score), fill = "#ff3a3a") +
+  scale_y_continuous(breaks = seq(0, 140, 10)) +
+  coord_flip() + theme_linedraw()
+```
+```{r, fig.align="center", fig.height = 8}
+cur.green <- o_rank_course("green")
+cur.adv <- bind_rows(cur.blue, cur.red, cur.green) %>%
+  filter(Count_Events > 3, Club != "")
+ggplot(cur.adv) + 
+  ggtitle("Advanced Course Scores by Club") +
+  geom_boxplot(aes(x = Club, y = Score), fill = "#f76d22") +
+  scale_y_continuous(breaks = seq(0, 140, 10)) +
+  coord_flip() + theme_linedraw()
+```
+
+Source data is events to identify which club is hosting the most events
+
+```{r, fig.align="center", fig.height = 6}
+club.events <- o_events() %>%
+  group_by(Club) %>%
+  summarise(Count = n())
+ggplot(club.events, aes(x = reorder(Club, -Count), y = Count)) + 
+  ggtitle("Number of Events Hosted by Clubs Since 2010") +
+  geom_bar(stat = "identity", fill = "#6FBF40", color = "black") +
+  scale_y_continuous(breaks = seq(0, 30, 5), name = "Number of Events") +
+  coord_flip() + theme_linedraw() + xlab("Club")
+```
+
