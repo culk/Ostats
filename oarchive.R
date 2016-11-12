@@ -9,24 +9,25 @@ library(stringr)
 #   started breaking it out by course in 2003
 #   started doing intermediate rankings in 2006
 
-o_archive_dates <- function() {
-  # this is going to be a huge pain because of inconsistent format
-  url <- "https://www.orienteeringusa.org/rankings/archive.php"
-  page <- read_html(url)
-  years <- page %>%
-    html_nodes("ul#treemenu1.treeview > li") %>%
-    html_text() %>%
-    substr(1, 13)
-  links <- page %>%
-    html_nodes("a") %>%
-    html_attr("href") %>%
-    as_tibble()
-  result_links <- links %>%
-    filter(str_detect(value, "12_31"))
-  return(NULL)
-}
+# early attempt, not a good start
+# o_archive_dates <- function() {
+#   # this is going to be a huge pain because of inconsistent format
+#   url <- "https://www.orienteeringusa.org/rankings/archive.php"
+#   page <- read_html(url)
+#   years <- page %>%
+#     html_nodes("ul#treemenu1.treeview > li") %>%
+#     html_text() %>%
+#     substr(1, 13)
+#   links <- page %>%
+#     html_nodes("a") %>%
+#     html_attr("href") %>%
+#     as_tibble()
+#   result_links <- links %>%
+#     filter(str_detect(value, "12_31"))
+#   return(NULL)
+# }
 
-o_archive_file <- function(course, rank_year) {
+o_archive_data <- function(course, rank_year) {
   # error checking and conversion for course selections
   courses <- list(
     # crs_num | course
@@ -55,53 +56,109 @@ o_archive_file <- function(course, rank_year) {
                      "2005" = str_c("2005_",course_name,"_official"),
                      "2004" = str_c("2004_",course_name,"_official"),
                      "2003" = str_c("2003_",course_name,"_official"))
-  return(filename)
-}
-
-# supports 2009 only
-o_archive_course <- function(course, rank_year) {
-  filename <- o_archive_file(course, rank_year)
-  
-  #### Given filename, return one data frame for that course with correct columns
   url <- str_c("https://www.orienteeringusa.org/rankings/rslt/",
                filename, ".html")
   page <- read_html(url)
-  rank <- page %>%
-    html_table() %>%
+  df <- page %>%
+    html_table(fill = TRUE) %>%
     .[[1]] %>%
     as_tibble()
-  if(ncol(rank) > 14) {
-    new_names <- rank[10, -(15:ncol(rank))]
-  } else {
-    new_names <- rank[10, ]
+  return(df)
+}
+
+# supports 2009-2007 only
+o_archive_course <- function(course, rank_year) {
+  o_archive_2009 <- function(df) {
+    # set column names
+    if(ncol(df) > 14) {
+      new_names <- df[10, -(15:ncol(df))]
+    } else {
+      new_names <- df[10, ]
+    }
+    names(df)[1:ncol(new_names)] <- new_names
+    # clean up columns
+    df <- df %>%
+      rename(Overall_Rank = `Overall Rank`, Count_Events = `# of Events`) %>%
+      unite(Name, `First Name`, Surname, sep = " ") %>%
+      mutate(Birth_Year = rank_year - as.numeric(Age)) %>%
+      select(-starts_with("X"), -Patch, -Age, -starts_with("USOF"))
+    if(!("Class" %in% names(df))) {
+      df <- mutate(df, Class = "M-21+", Class_Rank = Overall_Rank)
+    } else {
+      df <- rename(df, Class_Rank = `Class Rank`)
+    }
+    return(df)
   }
-  names(rank)[1:ncol(new_names)] <- new_names
-  # rank <- rank %>%
-  #   mutate() %>%
-  #   select() %>%
-  
-  ####
-  
-  #### change variable types, filter out bad data
+  o_archive_2008 <- function(df) {
+    # set column names
+    if(ncol(df) > 14) {
+      new_names <- df[10, -(15:ncol(df))]
+    } else {
+      new_names <- df[10, ]
+    }
+    names(df)[1:ncol(new_names)] <- new_names
+    # clean up columns
+    df <- df %>%
+      rename(Overall_Rank = `Overall\n    Rank`, Count_Events = `# of\n    Events`) %>%
+      mutate(Birth_Year = rank_year - as.numeric(Age)) %>%
+      select(-starts_with("X"), -Award, -Age, -starts_with("USOF"),
+             First = starts_with("First"), Last = starts_with("Last")) %>%
+      unite(Name, First, Last, sep = " ")
+    if(!("Class" %in% names(df))) {
+      df <- mutate(df, Class = "M-21+", Class_Rank = Overall_Rank)
+    } else {
+      df <- rename(df, Class_Rank = `Class\n    Rank`)
+    }
+    return(df)
+  }
+  o_archive_2007 <- function(df) {
+    # set column names
+    df <- df[, -10] # fixes parsing of blue columns
+    if(ncol(df) > 14) {
+      new_names <- df[8, -(15:ncol(df))]
+    } else {
+      new_names <- df[8, ]
+    }
+    names(df)[1:ncol(new_names)] <- new_names
+    # clean up columns
+    df <- df %>%
+      rename(Count_Events = `# of\n    Events`) %>%
+      mutate(Birth_Year = rank_year - as.numeric(Age)) %>%
+      select(-starts_with("X"), -Award, -Age, -starts_with("USOF"),
+             Overall_Rank = starts_with("Overall")) %>%
+      # will not extract single word club names, broken clubs:
+      # Coureurs de Bois
+      # OK Linné
+      # OLC Kapreolo
+      extract(Name, c("Name", "Club"), regex = "(.*)\\s+([^ ]+)$")
+    if(!("Class" %in% names(df))) {
+      df <- mutate(df, Class = "M-21+", Class_Rank = Overall_Rank)
+    } else {
+      df <- rename(df, Class_Rank = `Class Rank`)
+    }
+    return(df)
+  }
+  # get data with correct columns
+  df <- o_archive_data(course, rank_year)
+  rank <- switch(as.character(rank_year),
+                 "2009" = o_archive_2009(df),
+                 "2008" = o_archive_2008(df),
+                 "2007" = o_archive_2007(df))
+  # correct variable type and clean missing data
   rank <- rank %>%
-    select(-starts_with("USOF"), -starts_with("X"), -Patch) %>%
-    rename(Overall_Rank = `Overall Rank`, Count_Events = `# of Events`) %>%
-    unite(Name, `First Name`, Surname, sep = " ") %>%
     mutate(Overall_Rank = as.integer(Overall_Rank),
-           Birth_Year = rank_year - as.numeric(Age),
+           Class_Rank = as.integer(Class_Rank),
            Score = as.numeric(Score),
            Count_Events = as.integer(Count_Events),
-           Time = ifelse(Score != 0, str_c(Time, ":00"), ""),
-           Age = NULL) %>%
+           Time = ifelse(Score != 0, str_c(Time, ":00"), "")) %>%
     filter(!is.na(Count_Events))
-  if(course == "blue") {
-    rank <- mutate(rank, Class = "M-21+", Class_Rank = Overall_Rank)
+  # reorder the coumns
+  if("Birth_Year" %in% names(rank)) {
+    rank <- select(rank, Class_Rank, Overall_Rank, Name, Birth_Year,
+                   Club, Score, Time, Count_Events, Class)
   } else {
-    rank <- rank %>%
-      rename(Class_Rank = `Class Rank`) %>%
-      mutate(Class_Rank = as.integer(Class_Rank))
+    rank <- select(rank, Class_Rank, Overall_Rank, Name,
+                   Club, Score, Time, Count_Events, Class)
   }
-  rank <- select(rank, Class_Rank, Overall_Rank, Name, Birth_Year,
-                 Club, Score, Time, Count_Events, Class)
   return(rank)
 }
