@@ -3,12 +3,6 @@ library(rvest)
 library(lubridate)
 library(stringr)
 
-# FUTURE: add support for rank data past 2010
-#   links: https://www.orienteeringusa.org/rankings/archive.php
-#   ranks has: Rank, Name, Club, # Events, Pts, Time, Rank, Course, Class
-#   started breaking it out by course in 2003
-#   started doing intermediate rankings in 2006
-
 # returns a character vector of dates for which ranks have been published
 # source: https://www.orienteeringusa.org/rankings/index.php
 # output format: YYYY-MM-DD
@@ -19,6 +13,7 @@ o_rank_dates <- function() {
     .[-length(.)] %>%
     mdy() %>%
     as.character()
+  return(dates)
 }
 
 # takes in a date and course and returns a data frame of the combined 
@@ -227,21 +222,4 @@ o_clubs <- function() {
     separate(Name, c("Name", "Code"), sep = "  ") %>%
     mutate(Code = str_sub(Code, 2, -2))
   return(clubs)
-}
-
-o_rank_archive <- function() {
-  # this is going to be a huge pain because of inconsistent format
-  url <- "https://www.orienteeringusa.org/rankings/archive.php"
-  page <- read_html(url)
-  years <- page %>%
-    html_nodes("ul#treemenu1.treeview > li") %>%
-    html_text() %>%
-    substr(1, 13)
-  links <- page %>%
-    html_nodes("a") %>%
-    html_attr("href") %>%
-    as_tibble()
-  result_links <- links %>%
-    filter(str_detect(value, "12_31"))
-  return(NULL)
 }
