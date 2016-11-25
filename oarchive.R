@@ -51,7 +51,6 @@ o_archive_data <- function(course, rank_year) {
   return(df)
 }
 
-# supports 2009-2005 only
 o_archive_course <- function(course, rank_year) {
   o_archive_2009 <- function(df) {
     # set column names
