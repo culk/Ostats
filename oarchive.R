@@ -9,6 +9,9 @@ library(stringr)
 #   started breaking it out by course in 2003
 #   started doing intermediate rankings in 2006
 
+# TODO:
+# fix pulling club names out in 2007
+
 o_archive_data <- function(course, rank_year) {
   # error checking and conversion for course selections
   courses <- list(
@@ -38,29 +41,76 @@ o_archive_data <- function(course, rank_year) {
                      "2005" = str_c("2005_",course_name,"_official"),
                      "2004" = str_c("2004_",course_name,"_official"),
                      "2003" = str_c("2003_",course_name,"_official"),
+                     "2002" = str_c("2002_",course_name,"_unofficial"),
+                     "2001" = str_c("2001_",course_name,"_unofficial"),
                      stop(str_c("Invalid year '", as.character(rank_year),
                                 "' selected. This function only pulls ",
                                 "data from 2009-2003.")))
   url <- str_c("https://www.orienteeringusa.org/rankings/rslt/",
                filename, ".html")
-  page <- read_html(url)
+
   if(rank_year >= 2005) {
+    page <- read_html(url)
     df <- page %>%
       html_table(fill = TRUE) %>%
       .[[1]] %>%
       as_tibble()
-  } else {
+  } else if(rank_year >= 2003) {
+    page <- read_html(url)
     dfs <- page %>%
       html_table(fill = TRUE, header = TRUE)
     dfs[[length(dfs)]] <- mutate(dfs[[length(dfs)]], Award = NA)
     df <- dfs %>%
       do.call(rbind, .) %>%
       as_tibble()
+  } else {
+    page <- read_html(url, encoding = "windows-1252")
+    temp_text <- page %>% 
+      html_node("pre") %>% 
+      html_text()
+    df <- read.fwf(textConnection(temp_text), widths = c(7, 24, 7, 7, 9, 9),
+                   strip.white = TRUE, as.is = TRUE) %>%
+      as_tibble() %>%
+      mutate(Class = NA) %>%
+      filter(!is.na(V1))
+    cur_class <- NA
+    for(i in 1:nrow(df)) {
+      if(is.na(df[i, 1])) {
+        df[i, 7] <- cur_class
+      } else if(df[i, 1] == "Rank") {
+        df[i, 7] <- "Class"
+      } else if (str_sub(df[i, 1], 1, 1) == "M" ||
+                 str_sub(df[i, 1], 1, 1) == "F") {
+        cur_class <- df[i, 1]
+      } else {
+        df[i, 7] <- cur_class
+      }
+    }
   }
   return(df)
 }
 
 o_archive_course <- function(course, rank_year) {
+  fix_time <- function(t) {
+    if (str_length(t) > 7 || str_length(t) < 2) {
+      return("")
+    }
+    ms <- as.integer(str_split(t, ":", simplify = TRUE))
+    m <- ms[1] %% 60
+    h <- as.integer(ms[1] / 60)
+    if(m < 10) {
+      m <- str_c("0", m)
+    }
+    if(ms[2] < 10) {
+      s <- str_c("0", ms[2])
+    } else {
+      s <- ms[2]
+    }
+    if(h < 10) {
+      h <- str_c("0", h)
+    }
+    str_c(h, ":", m, ":", s)
+  }
   # a separate function is needed to clean the data from each year
   # due to the differences in formating
   o_archive_2009 <- function(df) {
@@ -200,6 +250,19 @@ o_archive_course <- function(course, rank_year) {
       mutate(Overall_Rank = row_number())
     return(df)
   }
+  o_archive_2002 <- function(df) {
+    # set column names
+    new_names <- df[df[, 1] == "Rank", ][1, ]
+    names(df)[1:ncol(new_names)] <- new_names
+    # clean up columns
+    df <- df %>%
+      rename(Class_Rank = Rank, Count_Events = Races, Score = `Rank Pts`,
+             Time = `Time Rank`) %>%
+      mutate(Score = as.numeric(Score)) %>%
+      arrange(desc(Score)) %>%
+      mutate(Overall_Rank = row_number())
+    return(df)
+  }
   # get data with correct columns
   df <- o_archive_data(course, rank_year)
   rank <- switch(as.character(rank_year),
@@ -210,6 +273,8 @@ o_archive_course <- function(course, rank_year) {
                  "2005" = o_archive_2005(df),
                  "2004" = o_archive_2004(df),
                  "2003" = o_archive_2003(df),
+                 "2002" = o_archive_2002(df),
+                 "2001" = o_archive_2002(df),
                  stop(str_c("Invalid year '", as.character(rank_year),
                             "' selected. This function only formats ",
                             "data from 2009-2005.")))
@@ -218,9 +283,9 @@ o_archive_course <- function(course, rank_year) {
     mutate(Overall_Rank = as.integer(Overall_Rank),
            Class_Rank = as.integer(Class_Rank),
            Score = as.numeric(Score),
-           Count_Events = as.integer(Count_Events),
-           Time = ifelse(Score != 0, str_c(Time, ":00"), "")) %>%
+           Count_Events = as.integer(Count_Events)) %>%
     filter(!is.na(Count_Events))
+  rank$Time <- sapply(rank$Time, fix_time)
   # reorder the columns
   if("Birth_Year" %in% names(rank)) {
     rank <- select(rank, Class_Rank, Overall_Rank, Name, Birth_Year,
