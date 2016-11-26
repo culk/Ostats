@@ -81,6 +81,17 @@ o_archive_data <- function(course, rank_year) {
     } else {
       name_width <- 24
     }
+    if (rank_year == 1998 && course_name == "blue") {
+      df <- read.fwf(textConnection(temp_text), 
+                     widths = c(7, name_width, 9, 5, 7, 9, 9),
+                     strip.white = TRUE, as.is = TRUE, fill = TRUE,
+                     col.names = c("Class_Rank", "Name", "Club", "Age", 
+                                   "Count_Events", "Score", "Time")) %>%
+        select(-Age) %>%
+        as_tibble() %>%
+        mutate(Class = NA) %>%
+        filter(!is.na(Class_Rank))
+    } else {
     df <- read.fwf(textConnection(temp_text), 
                    widths = c(7, name_width, 7, 7, 9, 10),
                    strip.white = TRUE, as.is = TRUE, fill = TRUE,
@@ -89,6 +100,7 @@ o_archive_data <- function(course, rank_year) {
       as_tibble() %>%
       mutate(Class = NA) %>%
       filter(!is.na(Class_Rank))
+    }
     # loop over rows adding class information
     cur_class <- NA
     for (i in 1:nrow(df)) {
@@ -112,12 +124,9 @@ o_archive_course <- function(course, rank_year) {
   # due to the differences in formating
   o_archive_2009 <- function(df) {
     # set column names
-    if(ncol(df) > 14) {
-      new_names <- df[10, -(15:ncol(df))]
-    } else {
-      new_names <- df[10, ]
-    }
+    new_names <- df[df[, 3] == "Class Rank" | df[, 3] == "Surname", ][1, ]
     names(df)[1:ncol(new_names)] <- new_names
+    df <- df[, str_length(names(df)) > 1]
     # clean up columns
     df <- df %>%
       rename(Overall_Rank = `Overall Rank`, Count_Events = `# of Events`) %>%
