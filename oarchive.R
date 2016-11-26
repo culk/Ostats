@@ -150,15 +150,17 @@ o_archive_course <- function(course, rank_year) {
     names(df)[1:ncol(new_names)] <- new_names
     # clean up columns
     df <- df %>%
-      rename(Overall_Rank = `Overall\n    Rank`, Count_Events = `# of\n    Events`) %>%
+      rename(Count_Events = `# of\n    Events`) %>%
       mutate(Birth_Year = rank_year - as.numeric(Age)) %>%
       select(-starts_with("X"), -Award, -Age, -starts_with("USOF"),
-             First = starts_with("First"), Last = starts_with("Last")) %>%
+             First = starts_with("First"), Last = starts_with("Last"),
+             Overall_Rank = starts_with("Overall")) %>%
       unite(Name, First, Last, sep = " ")
     if(!("Class" %in% names(df))) {
       df <- mutate(df, Class = "M-21+", Class_Rank = Overall_Rank)
     } else {
-      df <- rename(df, Class_Rank = `Class\n    Rank`)
+      df <- df %>%
+        select(Class_Rank = matches("Class(\\\\n)?\\s+Rank"), everything())
     }
     return(df)
   }
@@ -189,9 +191,13 @@ o_archive_course <- function(course, rank_year) {
   }
   o_archive_2006 <- function(df) {
     # set column names
-    df <- df[, 1:10]
-    new_names <- df[8, ]
+    # df <- df[, 1:10]
+    # new_names <- df[8, ]
+    # names(df)[1:ncol(new_names)] <- new_names
+    
+    new_names <- df[df[, 1] == "Class Rank", ][1, ]
     names(df)[1:ncol(new_names)] <- new_names
+    df <- df[, str_length(names(df)) > 1]
     # clean up columns
     df <- df %>%
       rename(Count_Events = Events, Class_Rank = `Class Rank`,
