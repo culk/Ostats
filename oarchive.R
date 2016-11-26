@@ -48,7 +48,7 @@ o_archive_data <- function(course, rank_year) {
                      "1998" = str_c("1998_",course_name,"_unofficial"),
                      stop(str_c("Invalid year '", as.character(rank_year),
                                 "' selected. This function only supports ",
-                                "archived data from 2009-2003.")))
+                                "archived data from 2009-1998.")))
   url <- str_c("https://www.orienteeringusa.org/rankings/rslt/",
                filename, ".html")
   # scrape data on the page depening on the format used at the time
@@ -64,7 +64,7 @@ o_archive_data <- function(course, rank_year) {
     page <- read_html(url)
     dfs <- page %>%
       html_table(fill = TRUE, header = TRUE)
-    # fix for one additional runner on M/F-White...
+    # fix for edge case with one additional runner on M/F-White
     if (rank_year == 2004 && course_name == "white") {
       dfs[[length(dfs)]] <- dfs[[length(dfs)]][, c(-2:-4)]
       names(dfs[[length(dfs)]]) <- names(dfs[[1]][, -ncol(dfs[[1]])])
@@ -85,6 +85,7 @@ o_archive_data <- function(course, rank_year) {
     } else {
       name_width <- 24
     }
+    # fix for edge case where age was included
     if (rank_year == 1998 && course_name == "blue") {
       df <- read.fwf(textConnection(temp_text), 
                      widths = c(7, name_width, 9, 5, 7, 9, 9),
@@ -263,7 +264,7 @@ o_archive_course <- function(course, rank_year) {
       mutate(Overall_Rank = row_number())
     return(df)
   }
-  o_archive_2002 <- function(df) {
+  o_archive_02_98 <- function(df) {
     # clean up columns
     df <- df %>%
       mutate(Score = as.numeric(Score)) %>%
@@ -281,11 +282,11 @@ o_archive_course <- function(course, rank_year) {
                  "2005" = o_archive_2005(df),
                  "2004" = o_archive_2004(df),
                  "2003" = o_archive_2003(df),
-                 "2002" = o_archive_2002(df),
-                 "2001" = o_archive_2002(df),
-                 "2000" = o_archive_2002(df),
-                 "1999" = o_archive_2002(df),
-                 "1998" = o_archive_2002(df),
+                 "2002" = o_archive_02_98(df),
+                 "2001" = o_archive_02_98(df),
+                 "2000" = o_archive_02_98(df),
+                 "1999" = o_archive_02_98(df),
+                 "1998" = o_archive_02_98(df),
                  stop(str_c("Invalid year '", as.character(rank_year),
                             "' selected. This function only formats ",
                             "data from 2009-1998.")))
