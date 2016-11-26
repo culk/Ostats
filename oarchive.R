@@ -64,9 +64,13 @@ o_archive_data <- function(course, rank_year) {
     page <- read_html(url)
     dfs <- page %>%
       html_table(fill = TRUE, header = TRUE)
-    # the open categories (listed last) do not have an award column
-    dfs[[length(dfs)]] <- mutate(dfs[[length(dfs)]], Award = NA)
-    # was having difficulty combining with bind_rows(), should revisit
+    # fix for one additional runner on M/F-White...
+    if (rank_year == 2004 && course_name == "white") {
+      dfs[[length(dfs)]] <- dfs[[length(dfs)]][, c(-2:-4)]
+      names(dfs[[length(dfs)]]) <- names(dfs[[1]][, -ncol(dfs[[1]])])
+    }
+    # the open categories do not have an award column
+    dfs <- lapply(dfs, function(df) mutate(df, Award = NA))
     df <- dfs %>%
       do.call(rbind, .) %>%
       as_tibble()
@@ -191,10 +195,6 @@ o_archive_course <- function(course, rank_year) {
   }
   o_archive_2006 <- function(df) {
     # set column names
-    # df <- df[, 1:10]
-    # new_names <- df[8, ]
-    # names(df)[1:ncol(new_names)] <- new_names
-    
     new_names <- df[df[, 1] == "Class Rank", ][1, ]
     names(df)[1:ncol(new_names)] <- new_names
     df <- df[, str_length(names(df)) > 1]
