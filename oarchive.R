@@ -58,7 +58,7 @@ o_archive_data <- function(course, rank_year) {
                                 "from 2009-1998.")))
   url <- str_c("https://www.orienteeringusa.org/rankings/rslt/",
                filename, ".html")
-  # scrape data on the page depening on the format used at the time
+  # scrape data on the page depending on the format used at the time
   if (rank_year >= 2005) {
     # formatted as single html table with all classes
     page <- read_html(url)
@@ -192,6 +192,15 @@ o_archive_course <- function(course, rank_year) {
       # OK Linné
       # OLC Kapreolo
       extract(Name, c("Name", "Club"), regex = "(.*)\\s+([^ ]+)$")
+    ### Special club handling
+    # clubs <- c("OK Linné", "Coureurs de Bois", "OK Linne", "Östersunds OK",
+    #            "Bussola OK", "OLC Kapreolo", "Heming Norway", "CORK OC")
+    # c_last_n <- function(x, n) {
+    #   str_c(tail(x, n), collapse = " ")
+    # }
+    # df[(lapply(str_split(Name, " "), c_last_n, c(n = 2)) %in% clubs |
+    #       lapply(str_split(Name, " "), c_last_n, c(n = 3)) %in% clubs), ]
+    ###
     if(!("Class" %in% names(df))) {
       df <- df %>%
         mutate(Class = "M-21+", Class_Rank = Overall_Rank) %>%
