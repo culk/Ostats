@@ -10,7 +10,7 @@ o_rank_dates <- function() {
   dates <- read_html("https://www.orienteeringusa.org/rankings/index.php") %>%
     html_nodes("div#rank a.submenu") %>%
     html_text() %>%
-    .[-length(.)] %>%
+    head(length(.)-1) %>%
     mdy() %>%
     as.character()
   return(dates)
@@ -32,7 +32,7 @@ o_rank_course <- function(course, rank_date = "current") {
     "yellow" = 20,
     "white"  = 10
   )
-  if(str_to_lower(course) %in% names(courses)) {
+  if (str_to_lower(course) %in% names(courses)) {
     crs_num <- courses[[course]]
   } else if (course %in% courses) {
     crs_num <- course
@@ -42,13 +42,24 @@ o_rank_course <- function(course, rank_date = "current") {
   }
   # rank_date must be a valid date in format YYYY-MM-DD 
   # or "current" for the most recent ranks
-  if(rank_date == "current") {
-    rank_date <- o_rank_dates() %>%
+  available_dates <- o_rank_dates()
+  if (rank_date == "current") {
+    rank_date <- available_dates %>%
       first()
-  } else if (!(rank_date %in% o_rank_dates())) {
-    stop(str_c("Date '", rank_date, 
-               "' is not available or not a valid date. Try 'current' ", 
-               "or a different date in 'YYYY-MM-DD' format."))
+  } else if (!(rank_date %in% available_dates)) {
+    if (str_length(rank_date) == 4 && 
+        any(str_detect(available_dates, as.character(rank_date)))) {
+      rank_date <- available_dates %>%
+        .[str_detect(., as.character(rank_date))] %>%
+        first()
+    } else if (rank_date <= 2009 && rank_date >= 1994) {
+      # use the archive function for these dates
+      return(o_archive_course(crs_num, rank_date))
+    } else {
+      stop(str_c("Date '", rank_date, 
+                 "' is not available or not a valid date. Try 'current' ", 
+                 "or a different date in 'YYYY-MM-DD' format."))
+    }
   }
   # get page of rank data
   url <- str_c("https://www.orienteeringusa.org/rankings/rank_show.php",
@@ -113,7 +124,7 @@ o_runner_results <- function(last, first, current = FALSE) {
   dfs <- page %>%
     html_nodes("div#content table") %>%
     html_table()
-  if(current) {
+  if (current) {
     # return only the event results included in the current rank
     results <- dfs[[1]]
   } else {
