@@ -3,15 +3,22 @@ library(rvest)
 library(lubridate)
 library(stringr)
 
-# FUTURE: add support for rank data past 2010
-#   links: https://www.orienteeringusa.org/rankings/archive.php
-#   ranks has: Rank, Name, Club, # Events, Pts, Time, Rank, Course, Class
-#   started breaking it out by course in 2003
-#   started doing intermediate rankings in 2006
-
 # TODO:
 # fix pulling club names out in 2007
 
+# The below functions scrape ranking data from the OrienteeringUSA ranking
+# archives. The process of scraping the data and returning a formated dataframe
+# is done in three steps because of the large variation in formats for each 
+# year. 
+# Step 1: Scrape data for a course/year and combine into a single dataframe.
+#         This is done by the `o_archive_data` function.
+# Step 2: Remove unneeded rows and columns, add missing information, and
+#         put all the information into standardized columns.
+#         This is done by the `o_archive_YYYY` functions.
+# Step 3: Convert each column to the correct format and reorder the columns.
+#         This is done by the second half of the `o_archive_course` function.
+# source: https://www.orienteeringusa.org/rankings/archive.php
+# input format: course: 70 or "blue", rank_year: YYYY
 o_archive_data <- function(course, rank_year) {
   # error checking and conversion for course selections
   courses <- list(
@@ -32,7 +39,7 @@ o_archive_data <- function(course, rank_year) {
     stop(str_c("Course '", course, 
                "' is not a valid course. Try 'blue' or '70'."))
   }
-  # 2002 and earlier are not supported yet
+  # 1997 and earlier are not supported yet
   filename <- switch(as.character(rank_year),
                      "2009" = str_c("2009_12_31_",course_name),
                      "2008" = str_c("2008_eoy_",course_name),
@@ -46,9 +53,9 @@ o_archive_data <- function(course, rank_year) {
                      "2000" = str_c("2000_",course_name,"_unofficial"),
                      "1999" = str_c("1999_",course_name,"_unofficial"),
                      "1998" = str_c("1998_",course_name,"_unofficial"),
-                     stop(str_c("Invalid year '", as.character(rank_year),
-                                "' selected. This function only supports ",
-                                "archived data from 2009-1998.")))
+                     stop(str_c("Invalid year '", rank_year, "' selected. ",
+                                "This function only supports archived data ",
+                                "from 2009-1998.")))
   url <- str_c("https://www.orienteeringusa.org/rankings/rslt/",
                filename, ".html")
   # scrape data on the page depening on the format used at the time
@@ -57,7 +64,7 @@ o_archive_data <- function(course, rank_year) {
     page <- read_html(url)
     df <- page %>%
       html_table(fill = TRUE) %>%
-      .[[1]] %>%
+      first() %>%
       as_tibble()
   } else if (rank_year >= 2003) {
     # formatted as an html table for each class
@@ -287,9 +294,8 @@ o_archive_course <- function(course, rank_year) {
                  "2000" = o_archive_02_98(df),
                  "1999" = o_archive_02_98(df),
                  "1998" = o_archive_02_98(df),
-                 stop(str_c("Invalid year '", as.character(rank_year),
-                            "' selected. This function only formats ",
-                            "data from 2009-1998.")))
+                 stop(str_c("Invalid year '", rank_year, "' selected. This ",
+                            "function only formats data from 2009-1998.")))
   # correct variable type and remove missing data
   rank <- rank %>%
     mutate(Overall_Rank = as.integer(Overall_Rank),
