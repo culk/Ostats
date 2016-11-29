@@ -186,21 +186,30 @@ o_archive_course <- function(course, rank_year) {
       mutate(Birth_Year = rank_year - as.numeric(Age)) %>%
       select(-starts_with("X"), -Age, -starts_with("USOF"),
              Overall_Rank = starts_with("Overall"),
-             Count_Events = ends_with("Events")) %>%
-      # will not extract single word club names, broken clubs:
-      # Coureurs de Bois
-      # OK Linné
-      # OLC Kapreolo
-      extract(Name, c("Name", "Club"), regex = "(.*)\\s+([^ ]+)$")
-    ### Special club handling
-    # clubs <- c("OK Linné", "Coureurs de Bois", "OK Linne", "Östersunds OK",
-    #            "Bussola OK", "OLC Kapreolo", "Heming Norway", "CORK OC")
-    # c_last_n <- function(x, n) {
-    #   str_c(tail(x, n), collapse = " ")
-    # }
-    # df[(lapply(str_split(Name, " "), c_last_n, c(n = 2)) %in% clubs |
-    #       lapply(str_split(Name, " "), c_last_n, c(n = 3)) %in% clubs), ]
-    ###
+             Count_Events = ends_with("Events"))
+    # some clubs have more than one word for their name
+    # the below code checks the club name and adds a separator '|'
+    # this is not vectorized so it needs to be applied to the Name field
+    sep_name_club <- function(x) {
+      clubs <- c("OK Linné", "Coureurs de Bois", "OK Linne", "Östersunds OK",
+                 "Bussola OK", "OLC Kapreolo", "Heming Norway", "CORK OC")
+      x.split <- unlist(str_split(x, " "))
+      x.last3 <- str_c(tail(x.split, 3), collapse = " ")
+      x.last2 <- str_c(tail(x.split, 2), collapse = " ")
+      if (x.last3 %in% clubs) {
+        club <- x.last3
+        name <- str_sub(x, 1, -(str_length(club) + 2))
+      } else if (x.last2 %in% clubs) {
+        club <- x.last2
+        name <- str_sub(x, 1, -(str_length(club) + 2))
+      } else {
+        club <- str_c(tail(x.split, 1), collapse = " ")
+        name <- str_sub(x, 1, -(str_length(club) + 2))
+      }
+      return(str_c(name, club, sep = "|"))
+    }
+    df$Name <- sapply(df$Name, sep_name_club)
+    df <- separate(df, Name, c("Name", "Club"), "\\|")
     if(!("Class" %in% names(df))) {
       df <- df %>%
         mutate(Class = "M-21+", Class_Rank = Overall_Rank) %>%
