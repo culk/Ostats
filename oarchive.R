@@ -3,9 +3,6 @@ library(rvest)
 library(lubridate)
 library(stringr)
 
-# TODO:
-# fix pulling club names out in 2007
-
 # The below functions scrape ranking data from the OrienteeringUSA ranking
 # archives. The process of scraping the data and returning a formated dataframe
 # is done in three steps because of the large variation in formats for each 
@@ -345,12 +342,10 @@ o_archive_course <- function(course, rank_year) {
   }
   rank$Time <- sapply(rank$Time, fix_time)
   # reorder the columns
-  if ("Birth_Year" %in% names(rank)) {
-    rank <- select(rank, Class_Rank, Overall_Rank, Name, Birth_Year,
-                   Club, Score, Time, Count_Events, Class)
-  } else {
-    rank <- select(rank, Class_Rank, Overall_Rank, Name,
-                   Club, Score, Time, Count_Events, Class)
+  if (!("Birth_Year" %in% names(rank))) {
+    rank <- mutate(rank, Birth_Year = NA)
   }
+  rank <- select(rank, Class_Rank, Overall_Rank, Name, Birth_Year,
+                 Club, Score, Time, Count_Events, Class)
   return(rank)
 }
